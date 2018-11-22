@@ -1,0 +1,29 @@
+---
+- name: Get check_raid.pl
+  get_url:
+    url: https://github.com/glensc/nagios-plugin-check_raid/releases/download/4.0.8/check_raid.pl
+    dest: /usr/local/libexec/nagios/check_raid.pl
+    force: no
+    mode: 0755
+
+- name: Replace perl path
+  replace:
+    path: /usr/local/libexec/nagios/check_raid.pl
+    regexp:  '#!/usr/bin/perl'
+    replace: '#!/usr/local/bin/perl'
+
+- block:
+    - name: Install megacli
+      portinstall:
+        name: megacli
+        state: present
+
+    - name: Create sudoers.d/check_raid
+      command:
+        /usr/local/libexec/nagios/check_raid.pl --plugin megacli -S
+        creates=/usr/local/etc/sudoers.d/check_raid
+
+    - template: src=check_raid.cfg.j2 dest=/usr/local/etc/nrpe.d/check_raid.cfg mode=0644 backup=yes
+      notify: restart nrpe3
+
+  when: nagios_check_raid_plugin == 'megacli'
